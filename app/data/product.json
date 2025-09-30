@@ -1,0 +1,66 @@
+[
+    {
+        "id": 1,
+        "name": "ยาล่องหน",
+        "description": "สรรพคุณ: ดื่มแล้วทำให้ร่างกายโปร่งใส มองไม่เห็นด้วยตาเปล่า\nความอันตราย: ★★★★☆\n(เสี่ยงร่างกายไม่กลับคืนสภาพปกติการเคลื่อนไหวอาจยังมีเสียง/กลิ่น ทำให้ถูกจับได้)\n\nรายละเอียด: ดวงตาธรรมดาจะมองไม่เห็น\n- แต่สิ่งมีชีวิตเวทมนตร์บางชนิดยังตรวจจับได้\n- ผู้ดื่มยังคงทิ้งเงาเล็กน้อยและกลิ่นกาย (ผู้มีสัมผัสพิเศษอาจจับได้)\nวิธีใช้: ดื่ม 1 อึก จะหายตัวได้ประมาณ 15 นาที\nข้อควรระวัง(หากดื่มมากขึ้นอาจทำให้ร่างกายโปร่งใสถาวรไม่สามารถกลับคืน)",
+        "price": 9999900,
+        "discount_percent": 0,
+        "image": "/products_img/1.png"
+    },
+    {
+        "id": 2,
+        "name": "ยาเหาะเหินเดินอากาศ",
+        "description": "",
+        "price": 9000000,
+        "discount_percent": 0,
+        "image": "/products_img/2.png"
+    },
+    {
+        "id": 3,
+        "name": "ยาบัฟแรง",
+        "description": "",
+        "price": 7000000,
+        "discount_percent": 0,
+        "image": "/products_img/3.png"
+    },
+    {
+        "id": 4,
+        "name": "ยามหาเสน่ห์",
+        "description": "",
+        "price": 8000000,
+        "discount_percent": 0,
+        "image": "/products_img/4.png"
+    },
+    {
+        "id": 5,
+        "name": "ยาเพิ่มโชค",
+        "description": "",
+        "price": 4000000,
+        "discount_percent": 0,
+        "image": "/products_img/5.png"
+    },
+    {
+        "id": 6,
+        "name": "ยาย้อนวันวาน",
+        "description": "",
+        "price": 5000000,
+        "discount_percent": 0,
+        "image": "/products_img/6.png"
+    },
+    {
+        "id": 7,
+        "name": "ยาบอกมาสิจ๊ะ",
+        "description": "",
+        "price": 8000000,
+        "discount_percent": 0,
+        "image": "/products_img/7.png"
+    },
+    {
+        "id": 8,
+        "name": "ยาคนอยากฉลาด",
+        "description": "",
+        "price": 8888800,
+        "discount_percent": 0,
+        "image": "/products_img/8.png"
+    }
+]
