@@ -1,16 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { login } from "@/serveractions/auths";
+import Swal from "sweetalert2";
 
 export default function LoginPage() {
     const router = useRouter();
+    const [isPending, startTransition] = useTransition();
     const [form, setForm] = useState({
-        email: "",
+        username: "",
         password: "",
     });
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
 
     const handleChange = (e) => {
         setForm({ ...form, [e.target.name]: e.target.value });
@@ -18,25 +19,45 @@ export default function LoginPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError(null);
-        setLoading(true);
 
-        try {
-            const res = await fetch("/api/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(form),
-            });
+        const formData = new FormData(e.currentTarget);
 
-            if (!res.ok) throw new Error("Login failed");
+        startTransition(async () => {
+            try {
+                const result = await login(formData);
 
-            // login สำเร็จ → redirect ไปหน้าแรก
-            router.push("/");
-        } catch (err) {
-            setError(err.message || "Something went wrong");
-        } finally {
-            setLoading(false);
-        }
+                if (result?.success) {
+                    // Show success message
+                    await Swal.fire({
+                        icon: "success",
+                        title: "สำเร็จ!",
+                        text: "เข้าสู่ระบบเรียบร้อยแล้ว",
+                        timer: 1500,
+                        showConfirmButton: false,
+                    });
+
+                    // Store user info if needed (optional)
+                    // sessionStorage.setItem('user', JSON.stringify(result.user));
+
+                    // Redirect to home
+                    router.push("/");
+                } else {
+                    // Show error message
+                    Swal.fire({
+                        icon: "error",
+                        title: "เข้าสู่ระบบไม่สำเร็จ",
+                        text: result?.error || "กรุณาลองใหม่อีกครั้ง",
+                    });
+                }
+            } catch (err) {
+                console.error(err);
+                Swal.fire({
+                    icon: "error",
+                    title: "เกิดข้อผิดพลาด",
+                    text: "มีบางอย่างผิดพลาด กรุณาลองใหม่อีกครั้ง",
+                });
+            }
+        });
     };
 
     return (
@@ -46,23 +67,20 @@ export default function LoginPage() {
                     เข้าสู่ระบบ
                 </h1>
 
-                {error && (
-                    <div className="mb-4 text-red-500 text-sm text-center">{error}</div>
-                )}
-
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    {/* Email */}
+                    {/* Username */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700">
-                            อีเมล
+                            ชื่อผู้ใช้
                         </label>
                         <input
-                            type="email"
-                            name="email"
-                            value={form.email}
+                            type="text"
+                            name="username"
+                            value={form.username}
                             onChange={handleChange}
                             required
-                            className="w-full mt-1 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/70"
+                            disabled={isPending}
+                            className="w-full mt-1 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/70 disabled:opacity-50"
                         />
                     </div>
 
@@ -77,16 +95,17 @@ export default function LoginPage() {
                             value={form.password}
                             onChange={handleChange}
                             required
-                            className="w-full mt-1 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/70"
+                            disabled={isPending}
+                            className="w-full mt-1 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/70 disabled:opacity-50"
                         />
                     </div>
 
                     <button
                         type="submit"
-                        disabled={loading}
+                        disabled={isPending}
                         className="w-full py-2.5 px-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-lg shadow-md hover:opacity-90 transition disabled:opacity-50"
                     >
-                        {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
+                        {isPending ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
                     </button>
                 </form>
 

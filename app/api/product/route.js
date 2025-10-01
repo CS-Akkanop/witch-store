@@ -4,8 +4,6 @@ export async function GET(request) {
     const productName = request.nextUrl.searchParams.get("pname");
 
     try {
-        console.log(true)
-
         if (productName) {
             // หา product ตามชื่อ
             const [rows] = await promisePool.query("SELECT * FROM products WHERE name = ?", [productName]);

@@ -1,19 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-
+import { register } from "@/serveractions/auths";
 import Swal from "sweetalert2";
 
 export default function RegisterPage() {
     const router = useRouter();
+    const [isPending, startTransition] = useTransition();
     const [form, setForm] = useState({
         username: "",
         email: "",
         password: "",
         confirmpass: "",
     });
-    const [loading, setLoading] = useState(false);
 
     const handleChange = (e) => {
         setForm({ ...form, [e.target.name]: e.target.value });
@@ -21,44 +21,52 @@ export default function RegisterPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
 
-
-
-        try {
-
-            if (form.password !== form.confirmpass) {
-                Swal.fire({
-                    icon: "error",
-                    title: "Oops...",
-                    text: "Password does not match!"
-                });
-                setLoading(false);
-                return;
-            }
-
-            const res = await fetch("/api/register", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", 'x-csrf-token': window.__CSRF_TOKEN__ || '' },
-                body: JSON.stringify(form),
-            });
-
-            if (!res.ok) {
-                throw new Error("Register failed");
-            }
-
-            // สมัครสำเร็จ → redirect ไปหน้า login
-            router.push("/login");
-        } catch (err) {
-            console.log(err)
+        // Client-side password match check
+        if (form.password !== form.confirmpass) {
             Swal.fire({
                 icon: "error",
                 title: "Oops...",
-                text: err.message || "Something went wrong"
+                text: "Password does not match!",
             });
-        } finally {
-            setLoading(false);
+            return;
         }
+
+        const formData = new FormData(e.currentTarget);
+
+        startTransition(async () => {
+            try {
+                const result = await register(formData);
+
+                if (result?.success) {
+                    // Show success message
+                    await Swal.fire({
+                        icon: "success",
+                        title: "สำเร็จ!",
+                        text: "สมัครสมาชิกเรียบร้อยแล้ว",
+                        timer: 1500,
+                        showConfirmButton: false,
+                    });
+
+                    // Redirect to login
+                    router.push("/login");
+                } else {
+                    // Show error message
+                    Swal.fire({
+                        icon: "error",
+                        title: "Oops...",
+                        text: result?.error || "Something went wrong",
+                    });
+                }
+            } catch (err) {
+                console.error(err);
+                Swal.fire({
+                    icon: "error",
+                    title: "Oops...",
+                    text: "Something went wrong",
+                });
+            }
+        });
     };
 
     return (
@@ -69,7 +77,7 @@ export default function RegisterPage() {
                 </h1>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    {/* Name */}
+                    {/* Username */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700">
                             Username
@@ -80,7 +88,8 @@ export default function RegisterPage() {
                             value={form.username}
                             onChange={handleChange}
                             required
-                            className="w-full mt-1 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/70"
+                            disabled={isPending}
+                            className="w-full mt-1 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/70 disabled:opacity-50"
                         />
                     </div>
 
@@ -95,7 +104,8 @@ export default function RegisterPage() {
                             value={form.email}
                             onChange={handleChange}
                             required
-                            className="w-full mt-1 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/70"
+                            disabled={isPending}
+                            className="w-full mt-1 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/70 disabled:opacity-50"
                         />
                     </div>
 
@@ -110,7 +120,8 @@ export default function RegisterPage() {
                             value={form.password}
                             onChange={handleChange}
                             required
-                            className="w-full mt-1 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/70"
+                            disabled={isPending}
+                            className="w-full mt-1 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/70 disabled:opacity-50"
                         />
                     </div>
 
@@ -125,16 +136,17 @@ export default function RegisterPage() {
                             value={form.confirmpass}
                             onChange={handleChange}
                             required
-                            className="w-full mt-1 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/70"
+                            disabled={isPending}
+                            className="w-full mt-1 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/70 disabled:opacity-50"
                         />
                     </div>
 
                     <button
                         type="submit"
-                        disabled={loading}
+                        disabled={isPending}
                         className="w-full py-2.5 px-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-lg shadow-md hover:opacity-90 transition disabled:opacity-50"
                     >
-                        {loading ? "กำลังสมัคร..." : "สมัครสมาชิก"}
+                        {isPending ? "กำลังสมัคร..." : "สมัครสมาชิก"}
                     </button>
                 </form>
 
