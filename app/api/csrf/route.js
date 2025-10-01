@@ -1,6 +1,9 @@
-import { generateCsrfToken } from "@/lib/csrf";
+import { getCsrfToken } from "@/lib/csrf";
 
 export async function GET() {
-    const token = generateCsrfToken();
-    return new Response.json({ csrfToken: token });
+    const token = await getCsrfToken();
+    return new Response(JSON.stringify({ token }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+    });
 }

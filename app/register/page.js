@@ -22,7 +22,6 @@ export default function RegisterPage() {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Client-side password match check
         if (form.password !== form.confirmpass) {
             Swal.fire({
                 icon: "error",
@@ -39,7 +38,6 @@ export default function RegisterPage() {
                 const result = await register(formData);
 
                 if (result?.success) {
-                    // Show success message
                     await Swal.fire({
                         icon: "success",
                         title: "สำเร็จ!",
@@ -51,7 +49,6 @@ export default function RegisterPage() {
                     // Redirect to login
                     router.push("/login");
                 } else {
-                    // Show error message
                     Swal.fire({
                         icon: "error",
                         title: "Oops...",
@@ -82,15 +79,7 @@ export default function RegisterPage() {
                         <label className="block text-sm font-medium text-gray-700">
                             Username
                         </label>
-                        <input
-                            type="text"
-                            name="username"
-                            value={form.username}
-                            onChange={handleChange}
-                            required
-                            disabled={isPending}
-                            className="w-full mt-1 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/70 disabled:opacity-50"
-                        />
+                        <input type="text" name="username" value={form.username} onChange={handleChange} required disabled={isPending} className="w-full mt-1 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/70 disabled:opacity-50" />
                     </div>
 
                     {/* Email */}
@@ -98,15 +87,7 @@ export default function RegisterPage() {
                         <label className="block text-sm font-medium text-gray-700">
                             Email
                         </label>
-                        <input
-                            type="email"
-                            name="email"
-                            value={form.email}
-                            onChange={handleChange}
-                            required
-                            disabled={isPending}
-                            className="w-full mt-1 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/70 disabled:opacity-50"
-                        />
+                        <input type="email" name="email" value={form.email} onChange={handleChange} required disabled={isPending} className="w-full mt-1 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/70 disabled:opacity-50" />
                     </div>
 
                     {/* Password */}
@@ -114,15 +95,7 @@ export default function RegisterPage() {
                         <label className="block text-sm font-medium text-gray-700">
                             Password
                         </label>
-                        <input
-                            type="password"
-                            name="password"
-                            value={form.password}
-                            onChange={handleChange}
-                            required
-                            disabled={isPending}
-                            className="w-full mt-1 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/70 disabled:opacity-50"
-                        />
+                        <input type="password" name="password" value={form.password} onChange={handleChange} required disabled={isPending} className="w-full mt-1 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/70 disabled:opacity-50" />
                     </div>
 
                     {/* Confirm Password */}
@@ -130,22 +103,10 @@ export default function RegisterPage() {
                         <label className="block text-sm font-medium text-gray-700">
                             Confirm Password
                         </label>
-                        <input
-                            type="password"
-                            name="confirmpass"
-                            value={form.confirmpass}
-                            onChange={handleChange}
-                            required
-                            disabled={isPending}
-                            className="w-full mt-1 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/70 disabled:opacity-50"
-                        />
+                        <input type="password" name="confirmpass" value={form.confirmpass} onChange={handleChange} required disabled={isPending} className="w-full mt-1 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/70 disabled:opacity-50" />
                     </div>
 
-                    <button
-                        type="submit"
-                        disabled={isPending}
-                        className="w-full py-2.5 px-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-lg shadow-md hover:opacity-90 transition disabled:opacity-50"
-                    >
+                    <button type="submit" disabled={isPending} className="w-full py-2.5 px-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-lg shadow-md hover:opacity-90 transition disabled:opacity-50">
                         {isPending ? "กำลังสมัคร..." : "สมัครสมาชิก"}
                     </button>
                 </form>

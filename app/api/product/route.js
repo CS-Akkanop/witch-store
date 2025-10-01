@@ -16,6 +16,7 @@ export async function GET(request) {
                         name: rows[0].name,
                         description: rows[0].description,
                         price: rows[0].price,
+                        stock: rows[0].stock,
                         discount_percent: rows[0].discount_percent,
                         image: rows[0].image,
                     }),

@@ -1,11 +1,13 @@
 "use server";
 
 import bcrypt from "bcrypt";
-import { success, z } from "zod";
+import { z } from "zod";
 import { v1 } from "uuid";
+import { redirect } from "next/navigation";
 
 import { createSession, deleteSession, getSession } from "@/lib/session";
 import { promisePool } from "@/lib/db";
+import { validateCsrfToken } from "@/lib/csrf";
 
 // Define the validation schema
 const registerSchema = z.object({
@@ -103,6 +105,14 @@ export async function register(formData) {
 }
 
 export async function login(formData) {
+    const csrfToken = formData.get("csrfToken")?.toString();
+    if (!await validateCsrfToken(csrfToken)) {
+        return {
+            success: false,
+            error: "Invalid CSRF token. Please refresh the page and try again."
+        };
+    }
+
     const rawData = {
         username: formData.get("username"),
         password: formData.get("password"),
@@ -141,6 +151,7 @@ export async function login(formData) {
 
         await createSession({
             userId: rows[0].user_id,
+            username
         });
 
         return {
@@ -149,7 +160,7 @@ export async function login(formData) {
             user_id: rows[0].user_id
         }
     } catch (err) {
-        console.log(err)
+        console.error(err)
         return {
             success: false,
             error: "Login failed. Please try again.",
@@ -158,9 +169,17 @@ export async function login(formData) {
     }
 }
 
-export async function logout() {
+export async function logout(formData) {
+    const csrfToken = formData.get("csrfToken")?.toString();
+    if (!await validateCsrfToken(csrfToken)) {
+        return {
+            success: false,
+            error: "Invalid CSRF token. Please refresh the page and try again."
+        };
+    }
+
     await deleteSession();
-    redirect('/login');
+    redirect('/');
 }
 
 export async function getCurrentUser() {

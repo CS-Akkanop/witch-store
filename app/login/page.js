@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { login } from "@/serveractions/auths";
 import Swal from "sweetalert2";
@@ -8,10 +8,21 @@ import Swal from "sweetalert2";
 export default function LoginPage() {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
+    const [csrfToken, setToken] = useState(null)
     const [form, setForm] = useState({
         username: "",
         password: "",
     });
+
+    useEffect(() => {
+        async function fetchToken() {
+            const res = await fetch("/api/csrf");
+            const data = await res.json();
+            setToken(data.token);
+        }
+        fetchToken();
+
+    }, []);
 
     const handleChange = (e) => {
         setForm({ ...form, [e.target.name]: e.target.value });
@@ -35,9 +46,6 @@ export default function LoginPage() {
                         timer: 1500,
                         showConfirmButton: false,
                     });
-
-                    // Store user info if needed (optional)
-                    // sessionStorage.setItem('user', JSON.stringify(result.user));
 
                     // Redirect to home
                     router.push("/");
@@ -69,42 +77,23 @@ export default function LoginPage() {
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {/* Username */}
+                    <input type="hidden" name="csrfToken" value={csrfToken ?? ""} />
                     <div>
                         <label className="block text-sm font-medium text-gray-700">
-                            ชื่อผู้ใช้
+                            Username
                         </label>
-                        <input
-                            type="text"
-                            name="username"
-                            value={form.username}
-                            onChange={handleChange}
-                            required
-                            disabled={isPending}
-                            className="w-full mt-1 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/70 disabled:opacity-50"
-                        />
+                        <input type="text" name="username" value={form.username} onChange={handleChange} required disabled={isPending} className="w-full mt-1 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/70 disabled:opacity-50" />
                     </div>
 
                     {/* Password */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700">
-                            รหัสผ่าน
+                            Password
                         </label>
-                        <input
-                            type="password"
-                            name="password"
-                            value={form.password}
-                            onChange={handleChange}
-                            required
-                            disabled={isPending}
-                            className="w-full mt-1 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/70 disabled:opacity-50"
-                        />
+                        <input type="password" name="password" value={form.password} onChange={handleChange} required disabled={isPending} className="w-full mt-1 px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white/70 disabled:opacity-50" />
                     </div>
 
-                    <button
-                        type="submit"
-                        disabled={isPending}
-                        className="w-full py-2.5 px-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-lg shadow-md hover:opacity-90 transition disabled:opacity-50"
-                    >
+                    <button type="submit" disabled={isPending} className="w-full py-2.5 px-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium rounded-lg shadow-md hover:opacity-90 transition disabled:opacity-50">
                         {isPending ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
                     </button>
                 </form>
