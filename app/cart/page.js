@@ -1,7 +1,10 @@
 "use client"
 
 import Navbar from "@/Components/Navbar";
+
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+
 import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 
@@ -9,27 +12,19 @@ function CartItem({ item, updateQuantity, removeItem }) {
     return (
         <div className="flex items-center gap-4 bg-white/80 backdrop-blur-sm rounded-2xl p-3 sm:p-4 shadow-md hover:shadow-lg transition-all">
             <div className="relative w-20 h-20 sm:w-24 sm:h-24 bg-purple-100 rounded-xl overflow-hidden flex items-center justify-center">
-                <Image
-                    src={item.image}
-                    alt={item.name}
-                    width={96}
-                    height={96}
-                    className="object-contain w-16 h-16 sm:w-20 sm:h-20"
-                />
+                <Image src={item.image} alt={item.name} width={96} height={96} className="object-contain w-16 h-16 sm:w-20 sm:h-20" />
             </div>
             <div className="flex-1 space-y-1">
                 <h3 className="text-sm sm:text-base font-semibold text-gray-800">{item.name}</h3>
                 <p className="text-purple-600 font-bold text-sm sm:text-base">฿{(item.price / 100).toFixed(2)}</p>
                 <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => updateQuantity(item.product_id, item.quantity - 1)}
-                        className="px-2 py-1 bg-gray-200 rounded-full hover:bg-gray-300 transition"
-                    >-</button>
+                    <button onClick={() => updateQuantity(item.product_id, item.quantity - 1)} className="px-2 py-1 bg-gray-200 rounded-full hover:bg-gray-300 transition" >
+                        -
+                    </button>
                     <span>{item.quantity}</span>
-                    <button
-                        onClick={() => updateQuantity(item.product_id, item.quantity + 1)}
-                        className="px-2 py-1 bg-gray-200 rounded-full hover:bg-gray-300 transition"
-                    >+</button>
+                    <button onClick={() => updateQuantity(item.product_id, item.quantity + 1)} className="px-2 py-1 bg-gray-200 rounded-full hover:bg-gray-300 transition" >
+                        +
+                    </button>
                 </div>
             </div>
             <button onClick={() => removeItem(item.product_id)} className="text-red-500 hover:text-red-600 transition" >
@@ -40,9 +35,10 @@ function CartItem({ item, updateQuantity, removeItem }) {
 }
 
 export default function CartPage() {
+    const router = useRouter();
+
     const [cart, setCart] = useState([]);
 
-    // ✅ ดึง cart จาก API
     useEffect(() => {
         const fetchCart = async () => {
             try {
@@ -51,14 +47,14 @@ export default function CartPage() {
                 const data = await res.json();
 
                 if (data.success && data.carts) {
-                    setCart(data.carts); // items เก็บเป็น JSON string → ต้อง parse
+                    setCart(data.carts);
                 }
             } catch (err) {
                 console.error("Error fetching cart:", err);
             }
         };
         fetchCart();
-    }, []); // ✅ รันครั้งเดียว
+    }, []); 
 
     const updateQuantity = async (id, qty) => {
         if (qty < 1) return;
@@ -69,7 +65,6 @@ export default function CartPage() {
 
         setCart(updatedCart);
 
-        // อัพเดตจำนวนสินค้าใน DB
         await fetch("/api/cart", {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -94,7 +89,6 @@ export default function CartPage() {
                 const updatedCart = cart.filter(item => item.product_id !== id);
                 setCart(updatedCart);
 
-                // TODO: call API เพื่อลบ item ออกจาก DB
                 await fetch("/api/cart", {
                     method: "DELETE",
                     headers: { "Content-Type": "application/json" },
@@ -117,8 +111,7 @@ export default function CartPage() {
             Swal.fire("ตะกร้าว่าง", "กรุณาเพิ่มสินค้าก่อนทำรายการ", "warning");
             return;
         }
-        Swal.fire("ชำระเงินเรียบร้อย!", `รวมยอดทั้งหมด: ฿${(totalPrice / 100).toFixed(2)}`, "success");
-        setCart([]);
+        router.push('/checkout');
     };
 
     return (

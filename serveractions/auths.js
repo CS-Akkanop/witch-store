@@ -2,7 +2,7 @@
 
 import bcrypt from "bcrypt";
 import { z } from "zod";
-import { v1 } from "uuid";
+import crypto from 'crypto';
 import { redirect } from "next/navigation";
 
 import { createSession, deleteSession, getSession } from "@/lib/session";
@@ -28,7 +28,7 @@ const registerSchema = z.object({
 const loginSchema = z.object({
     username: z.string().min(5, "Username is required."),
     password: z.string().min(1, "Password is required."),
-})
+});
 
 export async function register(formData) {
     // Extract form data
@@ -85,9 +85,10 @@ export async function register(formData) {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // Create user in database
+        const userId = crypto.randomBytes(12).toString('hex')
         await promisePool.query(
             "INSERT INTO users (user_id, username, email, pass_hash) VALUES (?, ?, ?, ?)",
-            [v1(), username, email, hashedPassword]
+            [userId, username, email, hashedPassword]
         );
 
         // Return success
@@ -141,7 +142,7 @@ export async function login(formData) {
             }
         }
 
-        const checkPassword = await bcrypt.compareSync(password, rows[0].pass_hash);
+        const checkPassword = await bcrypt.compare(password, rows[0].pass_hash);
         if (!checkPassword) {
             return {
                 success: false,

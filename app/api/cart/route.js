@@ -135,7 +135,7 @@ export async function GET() {
 export async function DELETE(request) {
     try {
         const cookie = await getSession();
-        if (!cookie) return new Response(JSON.stringify({ success: false, message: "Not authenticated" }), { status: 401 });
+        if (!cookie.user) return new Response(JSON.stringify({ success: false, message: "Not authenticated" }), { status: 401 });
 
         const body = await request.json();
         const { itemId } = body;
