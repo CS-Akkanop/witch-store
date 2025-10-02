@@ -20,15 +20,59 @@ export async function POST(request) {
             }), { status: 403 });
         }
 
-        const address = JSON.parse(formData.get("address"));
-        const items = JSON.parse(formData.get("items"));
-        const total = parseInt(formData.get("total"));
+        const address = JSON.parse(formData.get("address") || '{}');
+        const items = JSON.parse(formData.get("items") || '[]');
+        const clientTotal = parseInt(formData.get("total") || '0', 10);
 
-        if (!address || !items || items.length === 0) {
+        if (!address || !Array.isArray(items) || items.length === 0) {
             return new Response(JSON.stringify({ 
                 success: false, 
                 error: "Invalid order data" 
             }), { status: 400 });
+        }
+
+        // Basic address validation
+        const cleanAddress = {
+            fullName: String(address.fullName || '').slice(0, 200),
+            phone: String(address.phone || '').slice(0, 30),
+            line1: String(address.line1 || '').slice(0, 300),
+            line2: String(address.line2 || '').slice(0, 300),
+            city: String(address.city || '').slice(0, 120),
+            state: String(address.state || '').slice(0, 120),
+            postalCode: String(address.postalCode || '').slice(0, 20),
+        };
+        if (!cleanAddress.fullName || !cleanAddress.phone || !cleanAddress.line1 || !cleanAddress.city || !cleanAddress.postalCode) {
+            return new Response(JSON.stringify({ success: false, error: "Address incomplete" }), { status: 400 });
+        }
+
+        // Recompute total on server from product table to prevent tampering
+        const productIds = [...new Set(items.map(i => Number(i.product_id)).filter(n => Number.isInteger(n) && n > 0))];
+        if (productIds.length === 0) {
+            return new Response(JSON.stringify({ success: false, error: "Empty cart" }), { status: 400 });
+        }
+        const [products] = await promisePool.query(
+            `SELECT id, price FROM products WHERE id IN (?)`,
+            [productIds]
+        );
+        const idToPrice = new Map(products.map(p => [Number(p.id), Number(p.price)]));
+        let serverTotal = 0;
+        const normalizedItems = [];
+        for (const item of items) {
+            const pid = Number(item.product_id);
+            const qty = Math.max(1, Number(item.quantity) || 1);
+            const price = idToPrice.get(pid);
+            if (!price) continue;
+            serverTotal += price * qty;
+            normalizedItems.push({ product_id: pid, quantity: qty, unit_price: price });
+        }
+        if (normalizedItems.length === 0) {
+            return new Response(JSON.stringify({ success: false, error: "No valid items" }), { status: 400 });
+        }
+        // Optional: ensure client-submitted total matches recomputed total
+        if (Number.isFinite(clientTotal) && clientTotal !== serverTotal) {
+            // We proceed with serverTotal but signal mismatch
+            // Could also reject; choosing strictness:
+            return new Response(JSON.stringify({ success: false, error: "Total mismatch" }), { status: 400 });
         }
 
         // Generate order ID
@@ -38,7 +82,7 @@ export async function POST(request) {
         await promisePool.query(
             `INSERT INTO orders (order_id, user_id, address, items, total_amount, status, created_at) 
              VALUES (?, ?, ?, ?, ?, 'pending', NOW())`,
-            [orderId, session.user.userId, JSON.stringify(address), JSON.stringify(items), total]
+            [orderId, session.user.userId, JSON.stringify(cleanAddress), JSON.stringify(normalizedItems), serverTotal]
         );
 
         // Clear user's cart

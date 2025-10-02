@@ -20,6 +20,9 @@ export default function CheckoutPage() {
     const [csrfToken, setCsrfToken] = useState("");
     const [orderLoading, setOrderLoading] = useState(false);
     const [orderError, setOrderError] = useState("");
+    const [orderId, setOrderId] = useState("");
+    const [refs, setRefs] = useState({ ref1: "", ref2: "", ref3: "" });
+    const [paymentStatus, setPaymentStatus] = useState("");
     const [addressErrors, setAddressErrors] = useState({});
 
     const qrRef = useRef(null);
@@ -49,7 +52,7 @@ export default function CheckoutPage() {
                 if (isMounted) setLoading(false);
             }
         }
-        
+
         async function loadCsrfToken() {
             try {
                 const res = await fetch("/api/csrf");
@@ -59,13 +62,41 @@ export default function CheckoutPage() {
                 console.error("Failed to load CSRF token:", e);
             }
         }
-        
+
         loadCart();
         loadCsrfToken();
         return () => {
             isMounted = false;
         };
     }, []);
+
+    // Check Payment Status
+    useEffect(() => {
+        if (!showQR || !orderId) return;
+        const params = new URLSearchParams();
+        if (refs.ref1) params.set('ref1', refs.ref1);
+        if (refs.ref2) params.set('ref2', refs.ref2);
+        if (refs.ref3) params.set('ref3', refs.ref3);
+        const es = new EventSource(`/api/payment/status?${params.toString()}`);
+
+        es.onmessage = (e) => {
+            const data = JSON.parse(e.data);
+            setPaymentStatus(data.status)
+
+            if (data.status === "success") {
+                es.close();
+                router.push(`/order-success?orderId=${orderId}`);
+            } else if (data.status === "cancelled") {
+                es.close();
+                setQrError("การชำระเงินล้มเหลว กรุณาลองใหม่");
+            }
+        }
+
+        es.onerror = () => {
+            es.close();
+        };
+        return () => es.close();
+    }, [showQR, orderId]);
 
     const subtotal = useMemo(() => {
         return carts.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0);
@@ -75,31 +106,31 @@ export default function CheckoutPage() {
 
     const validateAddress = () => {
         const errors = {};
-        
+
         if (!address.fullName.trim()) {
             errors.fullName = "กรุณากรอกชื่อ-นามสกุล";
         }
-        
+
         if (!address.phone.trim()) {
             errors.phone = "กรุณากรอกเบอร์โทรศัพท์";
         } else if (!/^0[0-9]{8,9}$/.test(address.phone.replace(/[-\s]/g, ""))) {
             errors.phone = "รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง";
         }
-        
+
         if (!address.line1.trim()) {
             errors.line1 = "กรุณากรอกที่อยู่";
         }
-        
+
         if (!address.city.trim()) {
             errors.city = "กรุณากรอกอำเภอ/เขต";
         }
-        
+
         if (!address.postalCode.trim()) {
             errors.postalCode = "กรุณากรอกรหัสไปรษณีย์";
         } else if (!/^[0-9]{5}$/.test(address.postalCode)) {
             errors.postalCode = "รหัสไปรษณีย์ต้องเป็นตัวเลข 5 หลัก";
         }
-        
+
         setAddressErrors(errors);
         return Object.keys(errors).length === 0;
     };
@@ -119,7 +150,7 @@ export default function CheckoutPage() {
     const handleAddressChange = (field) => (e) => {
         const value = e.target.value;
         setAddress((prev) => ({ ...prev, [field]: value }));
-        
+
         // Clear error when user starts typing
         if (addressErrors[field]) {
             setAddressErrors((prev) => {
@@ -143,18 +174,22 @@ export default function CheckoutPage() {
             setQrError("CSRF token not loaded. Please refresh the page.");
             return;
         }
-        
+
         setQrLoading(true);
         setQrError("");
         try {
             const formData = new FormData();
             formData.append("csrfToken", csrfToken);
             // Call server action
-            const result = await generateQRPayment(formData, subtotal);
+
+            const newOrderId = makeid(10);
+            setOrderId(newOrderId);
+            const result = await generateQRPayment(formData, formattedSubtotal, newOrderId);
             if (result.success) {
                 const qr = await toDataURL(result.qrCode)
                 setQrCode(qr); // base64 image
                 setShowQR(true);
+                setRefs({ ref1: result.ref1, ref2: result.ref2, ref3: result.ref3 });
             } else {
                 setQrError(result.error || "QR Payment failed");
             }
@@ -165,39 +200,49 @@ export default function CheckoutPage() {
         }
     };
 
+    function makeid(length) {
+        var result = '';
+        var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        var charactersLength = characters.length;
+        for (var i = 0; i < length; i++) {
+            result += characters.charAt(Math.floor(Math.random() * charactersLength));
+        }
+        return result;
+    }
+
     const handlePlaceOrder = async () => {
         if (!csrfToken) {
             setOrderError("CSRF token not loaded. Please refresh the page.");
             return;
         }
-        
+
         if (!validateAddress()) {
             setOrderError("กรุณากรอกข้อมูลให้ครบถ้วนและถูกต้อง");
             return;
         }
-        
+
         if (carts.length === 0) {
             setOrderError("ตะกร้าของคุณว่างเปล่า");
             return;
         }
-        
+
         setOrderLoading(true);
         setOrderError("");
-        
+
         try {
             const formData = new FormData();
             formData.append("csrfToken", csrfToken);
             formData.append("address", JSON.stringify(address));
             formData.append("items", JSON.stringify(carts));
             formData.append("total", subtotal.toString());
-            
+
             const response = await fetch("/api/orders", {
                 method: "POST",
                 body: formData,
             });
-            
+
             const result = await response.json();
-            
+
             if (result.success) {
                 // Clear cart and redirect to success page
                 await fetch("/api/cart", { method: "DELETE" });
@@ -223,15 +268,14 @@ export default function CheckoutPage() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm text-gray-600 mb-1">ชื่อ-นามสกุล</label>
-                                    <input 
-                                        value={address.fullName} 
-                                        onChange={handleAddressChange("fullName")} 
-                                        className={`w-full px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 ${
-                                            addressErrors.fullName 
-                                                ? "border-red-300 focus:ring-red-400" 
-                                                : "border-gray-200 focus:ring-purple-400"
-                                        }`} 
-                                        placeholder="ชื่อ-นามสกุล" 
+                                    <input
+                                        value={address.fullName}
+                                        onChange={handleAddressChange("fullName")}
+                                        className={`w-full px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 ${addressErrors.fullName
+                                            ? "border-red-300 focus:ring-red-400"
+                                            : "border-gray-200 focus:ring-purple-400"
+                                            }`}
+                                        placeholder="ชื่อ-นามสกุล"
                                     />
                                     {addressErrors.fullName && (
                                         <p className="text-xs text-red-600 mt-1">{addressErrors.fullName}</p>
@@ -239,15 +283,14 @@ export default function CheckoutPage() {
                                 </div>
                                 <div>
                                     <label className="block text-sm text-gray-600 mb-1">เบอร์โทรศัพท์</label>
-                                    <input 
-                                        value={address.phone} 
-                                        onChange={handleAddressChange("phone")} 
-                                        className={`w-full px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 ${
-                                            addressErrors.phone 
-                                                ? "border-red-300 focus:ring-red-400" 
-                                                : "border-gray-200 focus:ring-purple-400"
-                                        }`} 
-                                        placeholder="08x-xxx-xxxx" 
+                                    <input
+                                        value={address.phone}
+                                        onChange={handleAddressChange("phone")}
+                                        className={`w-full px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 ${addressErrors.phone
+                                            ? "border-red-300 focus:ring-red-400"
+                                            : "border-gray-200 focus:ring-purple-400"
+                                            }`}
+                                        placeholder="08x-xxx-xxxx"
                                     />
                                     {addressErrors.phone && (
                                         <p className="text-xs text-red-600 mt-1">{addressErrors.phone}</p>
@@ -255,15 +298,14 @@ export default function CheckoutPage() {
                                 </div>
                                 <div className="sm:col-span-2">
                                     <label className="block text-sm text-gray-600 mb-1">ที่อยู่</label>
-                                    <input 
-                                        value={address.line1} 
-                                        onChange={handleAddressChange("line1")} 
-                                        className={`w-full px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 ${
-                                            addressErrors.line1 
-                                                ? "border-red-300 focus:ring-red-400" 
-                                                : "border-gray-200 focus:ring-purple-400"
-                                        }`} 
-                                        placeholder="บ้านเลขที่ หมู่ ถนน" 
+                                    <input
+                                        value={address.line1}
+                                        onChange={handleAddressChange("line1")}
+                                        className={`w-full px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 ${addressErrors.line1
+                                            ? "border-red-300 focus:ring-red-400"
+                                            : "border-gray-200 focus:ring-purple-400"
+                                            }`}
+                                        placeholder="บ้านเลขที่ หมู่ ถนน"
                                     />
                                     {addressErrors.line1 && (
                                         <p className="text-xs text-red-600 mt-1">{addressErrors.line1}</p>
@@ -275,15 +317,14 @@ export default function CheckoutPage() {
                                 </div>
                                 <div>
                                     <label className="block text-sm text-gray-600 mb-1">อำเภอ/เขต</label>
-                                    <input 
-                                        value={address.city} 
-                                        onChange={handleAddressChange("city")} 
-                                        className={`w-full px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 ${
-                                            addressErrors.city 
-                                                ? "border-red-300 focus:ring-red-400" 
-                                                : "border-gray-200 focus:ring-purple-400"
-                                        }`} 
-                                        placeholder="อำเภอ/เขต" 
+                                    <input
+                                        value={address.city}
+                                        onChange={handleAddressChange("city")}
+                                        className={`w-full px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 ${addressErrors.city
+                                            ? "border-red-300 focus:ring-red-400"
+                                            : "border-gray-200 focus:ring-purple-400"
+                                            }`}
+                                        placeholder="อำเภอ/เขต"
                                     />
                                     {addressErrors.city && (
                                         <p className="text-xs text-red-600 mt-1">{addressErrors.city}</p>
@@ -291,24 +332,23 @@ export default function CheckoutPage() {
                                 </div>
                                 <div>
                                     <label className="block text-sm text-gray-600 mb-1">จังหวัด</label>
-                                    <input 
-                                        value={address.state} 
-                                        onChange={handleAddressChange("state")} 
-                                        className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-400" 
-                                        placeholder="จังหวัด" 
+                                    <input
+                                        value={address.state}
+                                        onChange={handleAddressChange("state")}
+                                        className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                        placeholder="จังหวัด"
                                     />
                                 </div>
                                 <div>
                                     <label className="block text-sm text-gray-600 mb-1">รหัสไปรษณีย์</label>
-                                    <input 
-                                        value={address.postalCode} 
-                                        onChange={handleAddressChange("postalCode")} 
-                                        className={`w-full px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 ${
-                                            addressErrors.postalCode 
-                                                ? "border-red-300 focus:ring-red-400" 
-                                                : "border-gray-200 focus:ring-purple-400"
-                                        }`} 
-                                        placeholder="10xxx" 
+                                    <input
+                                        value={address.postalCode}
+                                        onChange={handleAddressChange("postalCode")}
+                                        className={`w-full px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 ${addressErrors.postalCode
+                                            ? "border-red-300 focus:ring-red-400"
+                                            : "border-gray-200 focus:ring-purple-400"
+                                            }`}
+                                        placeholder="10xxx"
                                     />
                                     {addressErrors.postalCode && (
                                         <p className="text-xs text-red-600 mt-1">{addressErrors.postalCode}</p>
@@ -323,7 +363,7 @@ export default function CheckoutPage() {
                                 <div className="flex flex-col sm:flex-row items-center gap-6">
                                     <div className="w-48 h-48 bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl flex items-center justify-center border border-purple-200">
                                         {qrCode ? (
-                                            <img src={qrCode} alt="QR Code" width={192} height={192} />
+                                            <Image src={qrCode} alt="QR Code" width={192} height={192} />
                                         ) : (
                                             <Image src="/icon.png" alt="QR Placeholder" width={120} height={120} className="opacity-80" />
                                         )}
@@ -395,9 +435,9 @@ export default function CheckoutPage() {
                                         </div>
                                     )}
 
-                                    <button 
+                                    <button
                                         onClick={handlePlaceOrder}
-                                        disabled={!canPlaceOrder || orderLoading || !csrfToken} 
+                                        disabled={!canPlaceOrder || orderLoading || !csrfToken}
                                         className={`w-full mt-3 py-2.5 rounded-xl text-white font-medium transition-colors ${canPlaceOrder && csrfToken ? "bg-purple-600 hover:bg-purple-700" : "bg-gray-300 cursor-not-allowed"}`}
                                     >
                                         {orderLoading ? "กำลังสร้างคำสั่งซื้อ..." : "ยืนยันคำสั่งซื้อ"}

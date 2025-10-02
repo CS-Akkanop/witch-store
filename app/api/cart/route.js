@@ -22,7 +22,12 @@ export async function POST(request) {
         if (!cookie) return new Response(JSON.stringify({ success: false, message: "Not authenticated" }), { status: 401 });
 
         const body = await request.json();
-        const { itemId, quantity } = body;
+        const { itemId, quantity } = body || {};
+        const productIdNum = Number(itemId);
+        const quantityNum = Number(quantity);
+        if (!Number.isInteger(productIdNum) || productIdNum <= 0 || !Number.isInteger(quantityNum) || quantityNum <= 0) {
+            return new Response(JSON.stringify({ success: false, message: "Invalid itemId or quantity" }), { status: 400 });
+        }
 
         const [rows] = await promisePool.query(
             "SELECT items FROM carts WHERE user_id = ?",
@@ -30,20 +35,20 @@ export async function POST(request) {
         );
 
         if (rows.length === 0) {
-            const items = [{ product_id: Number(itemId), quantity: Number(quantity) }];
+            const items = [{ product_id: productIdNum, quantity: quantityNum }];
             await promisePool.query(
                 "INSERT INTO carts (user_id, items) VALUES (?, ?)",
                 [cookie.user.userId, JSON.stringify(items)]
             );
         } else {
             const items = normalizeItems(rows[0].items);
-            const index = items.findIndex(i => i.product_id === Number(itemId));
+            const index = items.findIndex(i => i.product_id === productIdNum);
 
             if (index >= 0) {
-                const nextQuantity = Number(items[index].quantity) + Number(quantity);
+                const nextQuantity = Number(items[index].quantity) + quantityNum;
                 items[index].quantity = nextQuantity;
             } else {
-                items.push({ product_id: Number(itemId), quantity: Number(quantity) });
+                items.push({ product_id: productIdNum, quantity: quantityNum });
             }
 
             await promisePool.query(
@@ -65,7 +70,12 @@ export async function PUT(request) {
         if (!cookie) return new Response(JSON.stringify({ success: false, message: "Not authenticated" }), { status: 401 });
 
         const body = await request.json();
-        const { itemId, quantity } = body;
+        const { itemId, quantity } = body || {};
+        const productIdNum = Number(itemId);
+        const quantityNum = Number(quantity);
+        if (!Number.isInteger(productIdNum) || productIdNum <= 0 || !Number.isInteger(quantityNum) || quantityNum <= 0) {
+            return new Response(JSON.stringify({ success: false, message: "Invalid itemId or quantity" }), { status: 400 });
+        }
 
         const [rows] = await promisePool.query(
             "SELECT items FROM carts WHERE user_id = ?",
@@ -78,7 +88,7 @@ export async function PUT(request) {
 
         const items = normalizeItems(rows[0].items);
         const updatedItems = items.map(item =>
-            item.product_id === Number(itemId) ? { ...item, quantity: Number(quantity) } : item
+            item.product_id === productIdNum ? { ...item, quantity: quantityNum } : item
         );
 
         await promisePool.query(
@@ -104,13 +114,19 @@ export async function GET() {
         );
 
         if (rows.length === 0) {
-            return Response.json({ success: true, carts: [] });
+            // Try to include last successful order_id if exists
+            const [lastPay] = await promisePool.query(
+                "SELECT order_id FROM payments WHERE created_by = ? AND status = 'success' ORDER BY id DESC LIMIT 1",
+                [cookie.user.userId]
+            );
+            const orderId = Array.isArray(lastPay) && lastPay.length > 0 ? lastPay[0].order_id : null;
+            return Response.json({ success: true, carts: [], order_id: orderId });
         }
 
         const items = normalizeItems(rows[0].items)
 
         // ดึงข้อมูล product จริงจากตาราง products
-        const productIds = items.map(i => i.product_id);
+        const productIds = [...new Set(items.map(i => Number(i.product_id)).filter(n => Number.isInteger(n) && n > 0))];
         if (productIds.length === 0) return Response.json({ success: true, carts: [] });
 
         const [products] = await promisePool.query(
@@ -120,11 +136,18 @@ export async function GET() {
         );
 
         const carts = items.map(item => {
-            const product = products.find(p => p.id === item.product_id);
-            return product ? { ...product, product_id: product.id, quantity: Number(item.quantity) } : null;
+            const product = products.find(p => p.id === Number(item.product_id));
+            return product ? { ...product, product_id: product.id, quantity: Math.max(1, Number(item.quantity) || 1) } : null;
         }).filter(Boolean);
 
-        return Response.json({ success: true, carts });
+        // Also include last successful order_id if exists
+        const [lastPay] = await promisePool.query(
+            "SELECT order_id FROM payments WHERE created_by = ? AND status = 'success' ORDER BY id DESC LIMIT 1",
+            [cookie.user.userId]
+        );
+        const orderId = Array.isArray(lastPay) && lastPay.length > 0 ? lastPay[0].order_id : null;
+
+        return Response.json({ success: true, carts, order_id: orderId });
     } catch (err) {
         console.error(err);
         return new Response(JSON.stringify({ success: false, error: err.message }), { status: 500 });
@@ -135,10 +158,14 @@ export async function GET() {
 export async function DELETE(request) {
     try {
         const cookie = await getSession();
-        if (!cookie.user) return new Response(JSON.stringify({ success: false, message: "Not authenticated" }), { status: 401 });
+        if (!cookie) return new Response(JSON.stringify({ success: false, message: "Not authenticated" }), { status: 401 });
 
         const body = await request.json();
-        const { itemId } = body;
+        const { itemId } = body || {};
+        const productIdNum = Number(itemId);
+        if (!Number.isInteger(productIdNum) || productIdNum <= 0) {
+            return new Response(JSON.stringify({ success: false, message: "Invalid itemId" }), { status: 400 });
+        }
 
         const [rows] = await promisePool.query(
             "SELECT items FROM carts WHERE user_id = ?",
@@ -150,7 +177,7 @@ export async function DELETE(request) {
         }
 
         const items = normalizeItems(rows[0].items);
-        const updatedItems = items.filter(item => item.product_id !== Number(itemId));
+        const updatedItems = items.filter(item => Number(item.product_id) !== productIdNum);
 
         await promisePool.query(
             "UPDATE carts SET items = ? WHERE user_id = ?",

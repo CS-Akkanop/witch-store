@@ -36,8 +36,7 @@ async function getAccessToken() {
     return cachedToken;
 }
 
-export async function generateQRPayment(formData, amount) {
-
+export async function generateQRPayment(formData, amount, orderId) {
     const csrfToken = formData.get("csrfToken")?.toString();
     if (!await validateCsrfToken(csrfToken)) {
         return {
@@ -50,17 +49,14 @@ export async function generateQRPayment(formData, amount) {
     if (!getSession) return { success: false, error: "Session not found." }
 
     try {
-        let accessToken = await getAccessToken();
 
-        const ref1 = `ORDER${makeid(10)}`
-        const ref2 = `U${getSession.userId.toUpperCase().slice(0, 19)}`
+        let accessToken = await getAccessToken();
+        const ref1 = `ORDER${orderId}`;
+        const ref2 = `U${String(getSession.userId || '').toUpperCase().slice(0, 19)}`;
         const ref3 = `WDS${Date.now().toString()}`;
-        console.log(ref1)
-        console.log(ref2)
-        console.log(ref3)
         // Request QRCode
-        
-         const response = await fetch('https://api-sandbox.partners.scb/partners/sandbox/v1/payment/qrcode/create', {
+
+        const response = await fetch('https://api-sandbox.partners.scb/partners/sandbox/v1/payment/qrcode/create', {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -73,24 +69,23 @@ export async function generateQRPayment(formData, amount) {
                 "qrType": "PP",
                 "ppType": "BILLERID",
                 "ppId": "503924593300633",
-                "amount": (amount / 100).toFixed(2),
+                "amount": amount,
                 "ref1": ref1, // ORDER ID
                 "ref2": ref2, // USER ID
                 "ref3": ref3, // USER ID
             })
         });
-        if (!response.ok) return { success: false, error: "Create QR Payment Failed.", a:1 };
+        if (!response.ok) return { success: false, error: "Create QR Payment Failed." };
 
         const data = await response.json();
-        const createQRdata = await promisePool.query("INSERT INTO payments (created_by, amount, ref1, ref2, qrRawData) VALUES (?, ?, ?, ?, ?)",
-            [getSession.userId, amount, ref1, ref2, data.data.qrRawData]
+        const createQRdata = await promisePool.query("INSERT INTO payments (created_by, order_id, amount, ref1, ref2, ref3, qrRawData) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [getSession.userId, orderId, amount, ref1, ref2, ref3, data.data.qrRawData]
         )
 
         if (!createQRdata) {
             await promisePool.query("UPDATE payments SET status = 'cancelled' WHERE created_by = ?, ref1 = ?, ref2 = ?", [getSession.user_id, ref1, ref2])
             return {
                 success: false,
-                a: 2,
                 error: "Create QR Payment Failed."
             }
         }
@@ -98,26 +93,18 @@ export async function generateQRPayment(formData, amount) {
         return {
             success: true,
             qrCode: data.data.qrRawData,
-            ref1: ref1,
-            ref2: ref2
+            ref1,
+            ref2,
+            ref3,
+            orderId
         };
 
     } catch (err) {
         console.error("QR Payment Error:", err);
         return {
             success: false,
-            a: 3,
             error: "Create QR Payment Failed."
         }
     }
 }
 
-function makeid(length) {
-    var result = '';
-    var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    var charactersLength = characters.length;
-    for (var i = 0; i < length; i++) {
-        result += characters.charAt(Math.floor(Math.random() * charactersLength));
-    }
-    return result;
-}
