@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import Swal from "sweetalert2";
 import { generateQRPayment } from "@/serveractions/payments";
 import { toDataURL } from "qrcode";
 
@@ -13,17 +14,16 @@ export default function CheckoutPage() {
     const [carts, setCarts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    const [showQR, setShowQR] = useState(false);
-    const [qrCode, setQrCode] = useState(""); // base64 QR code image
-    const [qrLoading, setQrLoading] = useState(false);
-    const [qrError, setQrError] = useState("");
     const [csrfToken, setCsrfToken] = useState("");
     const [orderLoading, setOrderLoading] = useState(false);
     const [orderError, setOrderError] = useState("");
     const [orderId, setOrderId] = useState("");
-    const [refs, setRefs] = useState({ ref1: "", ref2: "", ref3: "" });
-    const [paymentStatus, setPaymentStatus] = useState("");
     const [addressErrors, setAddressErrors] = useState({});
+    // Minimal QR state (shown after order is created)
+    const [showQR, setShowQR] = useState(false);
+    const [qrCode, setQrCode] = useState("");
+    const [qrLoading, setQrLoading] = useState(false);
+    const [qrError, setQrError] = useState("");
 
     const qrRef = useRef(null);
 
@@ -70,33 +70,14 @@ export default function CheckoutPage() {
         };
     }, []);
 
-    // Check Payment Status
+    // Scroll QR into view when shown
     useEffect(() => {
-        if (!showQR || !orderId) return;
-        const params = new URLSearchParams();
-        if (refs.ref1) params.set('ref1', refs.ref1);
-        if (refs.ref2) params.set('ref2', refs.ref2);
-        if (refs.ref3) params.set('ref3', refs.ref3);
-        const es = new EventSource(`/api/payment/status?${params.toString()}`);
-
-        es.onmessage = (e) => {
-            const data = JSON.parse(e.data);
-            setPaymentStatus(data.status)
-
-            if (data.status === "success") {
-                es.close();
-                router.push(`/order-success?orderId=${orderId}`);
-            } else if (data.status === "cancelled") {
-                es.close();
-                setQrError("การชำระเงินล้มเหลว กรุณาลองใหม่");
-            }
+        if (showQR && qrRef.current) {
+            try {
+                qrRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+            } catch {}
         }
-
-        es.onerror = () => {
-            es.close();
-        };
-        return () => es.close();
-    }, [showQR, orderId]);
+    }, [showQR]);
 
     const subtotal = useMemo(() => {
         return carts.reduce((sum, item) => sum + Number(item.price) * Number(item.quantity), 0);
@@ -161,55 +142,6 @@ export default function CheckoutPage() {
         }
     };
 
-    useEffect(() => {
-        if (showQR && qrRef.current) {
-            try {
-                qrRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-            } catch { }
-        }
-    }, [showQR]);
-
-    const handleShowQR = async () => {
-        if (!csrfToken) {
-            setQrError("CSRF token not loaded. Please refresh the page.");
-            return;
-        }
-
-        setQrLoading(true);
-        setQrError("");
-        try {
-            const formData = new FormData();
-            formData.append("csrfToken", csrfToken);
-            // Call server action
-
-            const newOrderId = makeid(10);
-            setOrderId(newOrderId);
-            const result = await generateQRPayment(formData, formattedSubtotal, newOrderId);
-            if (result.success) {
-                const qr = await toDataURL(result.qrCode)
-                setQrCode(qr); // base64 image
-                setShowQR(true);
-                setRefs({ ref1: result.ref1, ref2: result.ref2, ref3: result.ref3 });
-            } else {
-                setQrError(result.error || "QR Payment failed");
-            }
-        } catch (err) {
-            setQrError("QR Payment failed");
-        } finally {
-            setQrLoading(false);
-        }
-    };
-
-    function makeid(length) {
-        var result = '';
-        var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        var charactersLength = characters.length;
-        for (var i = 0; i < length; i++) {
-            result += characters.charAt(Math.floor(Math.random() * charactersLength));
-        }
-        return result;
-    }
-
     const handlePlaceOrder = async () => {
         if (!csrfToken) {
             setOrderError("CSRF token not loaded. Please refresh the page.");
@@ -244,9 +176,32 @@ export default function CheckoutPage() {
             const result = await response.json();
 
             if (result.success) {
-                // Clear cart and redirect to success page
-                await fetch("/api/cart", { method: "DELETE" });
-                router.push(`/order-success?orderId=${result.orderId}`);
+                setOrderId(result.orderId);
+                // Generate QR for this order
+                setQrLoading(true);
+                setQrError("");
+                try {
+                    const formData = new FormData();
+                    formData.append("csrfToken", csrfToken);
+                    const qrResult = await generateQRPayment(formData, formattedSubtotal, result.orderId);
+                    if (qrResult.success) {
+                        const qr = await toDataURL(qrResult.qrCode);
+                        setQrCode(qr);
+                        setShowQR(true);
+                        await Swal.fire({
+                            title: "สร้าง QR สำเร็จ",
+                            text: `หมายเลขสั่งซื้อ: ${result.orderId}`,
+                            icon: "success"
+                        });
+                    } else {
+                        setQrError(qrResult.error || "QR Payment failed");
+                        await Swal.fire({ title: "ไม่สามารถสร้าง QR ได้", text: qrResult.error || "เกิดข้อผิดพลาด", icon: "error" });
+                    }
+                } catch (e) {
+                    setQrError("QR Payment failed");
+                } finally {
+                    setQrLoading(false);
+                }
             } else {
                 setOrderError(result.error || "Failed to place order");
             }
@@ -359,10 +314,12 @@ export default function CheckoutPage() {
 
                         {showQR && (
                             <div ref={qrRef} className="bg-white/80 backdrop-blur-sm rounded-2xl p-5 shadow-md border border-gray-100">
-                                <h2 className="text-lg font-semibold text-gray-800 mb-4">การชำระเงินด้วย QR</h2>
+                                <h2 className="text-lg font-semibold text-gray-800 mb-4">ชำระเงินด้วย QR</h2>
                                 <div className="flex flex-col sm:flex-row items-center gap-6">
                                     <div className="w-48 h-48 bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl flex items-center justify-center border border-purple-200">
-                                        {qrCode ? (
+                                        {qrLoading ? (
+                                            <Image src="/icon.png" alt="QR Placeholder" width={120} height={120} className="opacity-80 animate-pulse" />
+                                        ) : qrCode ? (
                                             <Image src={qrCode} alt="QR Code" width={192} height={192} />
                                         ) : (
                                             <Image src="/icon.png" alt="QR Placeholder" width={120} height={120} className="opacity-80" />
@@ -373,8 +330,8 @@ export default function CheckoutPage() {
                                             <p className="text-sm text-gray-700">ยอดชำระ</p>
                                             <p className="text-2xl font-bold text-purple-700">฿{formattedSubtotal}</p>
                                         </div>
-                                        <p className="text-sm text-gray-600">สแกน QR เพื่อชำระเงิน หรือกดยืนยันคำสั่งซื้อเมื่อชำระแล้ว</p>
                                         {qrError && <p className="text-sm text-red-600 mt-2">{qrError}</p>}
+                                        <p className="text-xs text-gray-500 mt-2">สแกน QR เพื่อชำระเงิน ระบบจะอัปเดตสถานะคำสั่งซื้อโดยอัตโนมัติ</p>
                                     </div>
                                 </div>
                             </div>
@@ -421,13 +378,7 @@ export default function CheckoutPage() {
                                         </div>
                                     </div>
 
-                                    <button
-                                        onClick={handleShowQR}
-                                        disabled={carts.length === 0 || qrLoading || !csrfToken}
-                                        className={`w-full py-2.5 rounded-xl text-purple-700 font-medium border transition-colors ${carts.length > 0 && csrfToken ? "border-purple-300 hover:bg-purple-50" : "border-gray-200 text-gray-400 cursor-not-allowed"}`}
-                                    >
-                                        {qrLoading ? "กำลังสร้าง QR..." : "การชำระเงินด้วย QR"}
-                                    </button>
+                                    {/* QR payment button removed */}
 
                                     {orderError && (
                                         <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">

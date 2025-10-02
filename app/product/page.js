@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import Swal from "sweetalert2";
 
@@ -11,6 +11,7 @@ const Navbar = dynamic(() => import("@/Components/Navbar"), { ssr: false });
 
 export default function ProductPage() {
   const productName = useSearchParams().get("pname") || "";
+  const router = useRouter();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -56,6 +57,33 @@ export default function ProductPage() {
     return Swal.fire({ title: "Error", text: "คำสั่งซื้อผิดพลาด", icon: "error" });
   };
 
+  const buyNow = async (itemId) => {
+    const { value: quantity } = await Swal.fire({
+      title: "ระบุจำนวน",
+      input: "text",
+      inputPlaceholder: "ระบุจำนวนที่ต้องการสั่งซื้อ",
+      inputValidator: (value) => {
+        if (!value) return "คุณต้องใส่จำนวน";
+      }
+    });
+
+    if (!quantity) return;
+
+    const res = await fetch('/api/cart', {
+      method: "POST",
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ itemId, quantity })
+    });
+
+    if (res.ok) {
+      await Swal.fire({ title: "เพิ่มลงตะกร้าสำเร็จ", text: `จำนวนสั่ง: ${quantity}`, icon: "success" });
+      router.push('/checkout');
+      return;
+    }
+    return Swal.fire({ title: "Error", text: "คำสั่งซื้อผิดพลาด", icon: "error" });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-50">
       <Navbar />
@@ -83,7 +111,7 @@ export default function ProductPage() {
                 <button onClick={(e) => { e.stopPropagation(); addToCart(product.id); }} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold py-3 rounded-full hover:scale-105 transition transform">
                   เพิ่มลงตะกร้า
                 </button>
-                <button className="w-full border-2 border-purple-500 text-purple-600 font-semibold py-3 rounded-full hover:bg-gray-50 transition">
+                <button onClick={(e) => { e.stopPropagation(); buyNow(product.id); }} className="w-full border-2 border-purple-500 text-purple-600 font-semibold py-3 rounded-full hover:bg-gray-50 transition">
                   ซื้อเลย
                 </button>
               </div>

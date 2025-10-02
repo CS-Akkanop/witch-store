@@ -3,6 +3,32 @@ import { promisePool } from "@/lib/db";
 import { validateCsrfToken } from "@/lib/csrf";
 import crypto from "crypto";
 
+export async function GET() {
+    try {
+        const session = await getSession();
+        if (!session) {
+            return new Response(JSON.stringify({ success: false, error: "Not authenticated" }), { status: 401 });
+        }
+
+        const [rows] = await promisePool.query(
+            `SELECT order_id, total_amount, status, created_at 
+             FROM orders 
+             WHERE user_id = ? 
+             ORDER BY created_at DESC 
+             LIMIT 100`,
+            [session.user.userId]
+        );
+
+        return new Response(JSON.stringify({ success: true, orders: rows || [] }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+        });
+    } catch (error) {
+        console.error("Orders fetch error:", error);
+        return new Response(JSON.stringify({ success: false, error: "Failed to fetch orders" }), { status: 500 });
+    }
+}
+
 export async function POST(request) {
     try {
         const session = await getSession();
@@ -12,11 +38,11 @@ export async function POST(request) {
 
         const formData = await request.formData();
         const csrfToken = formData.get("csrfToken")?.toString();
-        
+
         if (!await validateCsrfToken(csrfToken)) {
-            return new Response(JSON.stringify({ 
-                success: false, 
-                error: "Invalid CSRF token. Please refresh the page and try again." 
+            return new Response(JSON.stringify({
+                success: false,
+                error: "Invalid CSRF token. Please refresh the page and try again."
             }), { status: 403 });
         }
 
@@ -25,9 +51,9 @@ export async function POST(request) {
         const clientTotal = parseInt(formData.get("total") || '0', 10);
 
         if (!address || !Array.isArray(items) || items.length === 0) {
-            return new Response(JSON.stringify({ 
-                success: false, 
-                error: "Invalid order data" 
+            return new Response(JSON.stringify({
+                success: false,
+                error: "Invalid order data"
             }), { status: 400 });
         }
 
@@ -77,7 +103,7 @@ export async function POST(request) {
 
         // Generate order ID
         const orderId = `ORD${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
-        
+
         // Create order
         await promisePool.query(
             `INSERT INTO orders (order_id, user_id, address, items, total_amount, status, created_at) 
@@ -85,26 +111,28 @@ export async function POST(request) {
             [orderId, session.user.userId, JSON.stringify(cleanAddress), JSON.stringify(normalizedItems), serverTotal]
         );
 
+        await promisePool.query('UPDATE users SET address = ? WHERE user_id = ?', [session.user.userId, JSON.stringify(cleanAddress)])
+
         // Clear user's cart
         await promisePool.query(
             "DELETE FROM carts WHERE user_id = ?",
             [session.user.userId]
         );
 
-        return new Response(JSON.stringify({ 
-            success: true, 
+        return new Response(JSON.stringify({
+            success: true,
             orderId: orderId,
-            message: "Order placed successfully" 
-        }), { 
+            message: "Order placed successfully"
+        }), {
             status: 200,
             headers: { "Content-Type": "application/json" }
         });
 
     } catch (error) {
         console.error("Order creation error:", error);
-        return new Response(JSON.stringify({ 
-            success: false, 
-            error: "Failed to create order. Please try again." 
+        return new Response(JSON.stringify({
+            success: false,
+            error: "Failed to create order. Please try again."
         }), { status: 500 });
     }
 }
