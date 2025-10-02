@@ -96,8 +96,7 @@ export async function POST(request) {
         }
         // Optional: ensure client-submitted total matches recomputed total
         if (Number.isFinite(clientTotal) && clientTotal !== serverTotal) {
-            // We proceed with serverTotal but signal mismatch
-            // Could also reject; choosing strictness:
+
             return new Response(JSON.stringify({ success: false, error: "Total mismatch" }), { status: 400 });
         }
 
