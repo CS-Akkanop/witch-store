@@ -4,6 +4,6 @@ export const metadata = {
   description: "ร้านขายยาของแม่มด - Cart",
 };
 
-export default function ProductLayout({ children }) {
+export default function CartLayout({ children }) {
   return <>{children}</>; 
 }
