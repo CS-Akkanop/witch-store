@@ -107,7 +107,7 @@ export async function POST(request) {
         await promisePool.query(
             `INSERT INTO orders (order_id, user_id, address, items, total_amount, status, created_at) 
              VALUES (?, ?, ?, ?, ?, 'pending', NOW())`,
-            [orderId, session.user.userId, JSON.stringify(cleanAddress), JSON.stringify(normalizedItems), serverTotal]
+            [orderId, session.user.userId, JSON.stringify(cleanAddress), JSON.stringify(normalizedItems), serverTotal / 100]
         );
 
         await promisePool.query('UPDATE users SET address = ? WHERE user_id = ?', [session.user.userId, JSON.stringify(cleanAddress)])

@@ -53,7 +53,7 @@ export default function OrderHistoryPage() {
                                             <p className="text-sm text-gray-500">สถานะ: <span className="font-medium">{o.status}</span></p>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-purple-700 font-semibold">฿{(Number(o.total_amount) / 100).toFixed(2)}</p>
+                                            <p className="text-purple-700 font-semibold">฿{(Number(o.total_amount)).toFixed(2)}</p>
                                             <p className="text-xs text-gray-400">{new Date(o.created_at).toLocaleString()}</p>
                                         </div>
                                     </li>

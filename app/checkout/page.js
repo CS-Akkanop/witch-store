@@ -75,7 +75,7 @@ export default function CheckoutPage() {
         if (showQR && qrRef.current) {
             try {
                 qrRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-            } catch {}
+            } catch { }
         }
     }, [showQR]);
 
@@ -177,15 +177,21 @@ export default function CheckoutPage() {
 
             if (result.success) {
                 setOrderId(result.orderId);
-                // Generate QR for this order
+
                 setQrLoading(true);
                 setQrError("");
                 try {
                     const formData = new FormData();
                     formData.append("csrfToken", csrfToken);
-                    const qrResult = await generateQRPayment(formData, formattedSubtotal, result.orderId);
+                    formData.append("totalAmount", formattedSubtotal);
+                    formData.append("orderId", result.orderId);
+                    formData.append("name", address.fullName);
+                    formData.append("phonenumber", address.phone);
+
+                    const qrResult = await generateQRPayment(formData);
+
                     if (qrResult.success) {
-                        const qr = await toDataURL(qrResult.qrCode);
+                        const qr = await toDataURL(qrResult.qrData);
                         setQrCode(qr);
                         setShowQR(true);
                         await Swal.fire({
@@ -253,15 +259,7 @@ export default function CheckoutPage() {
                                 </div>
                                 <div className="sm:col-span-2">
                                     <label className="block text-sm text-gray-600 mb-1">ที่อยู่</label>
-                                    <input
-                                        value={address.line1}
-                                        onChange={handleAddressChange("line1")}
-                                        className={`w-full px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 ${addressErrors.line1
-                                            ? "border-red-300 focus:ring-red-400"
-                                            : "border-gray-200 focus:ring-purple-400"
-                                            }`}
-                                        placeholder="บ้านเลขที่ หมู่ ถนน"
-                                    />
+                                    <input value={address.line1} onChange={handleAddressChange("line1")} className={`w-full px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 ${addressErrors.line1 ? "border-red-300 focus:ring-red-400" : "border-gray-200 focus:ring-purple-400"}`} placeholder="บ้านเลขที่ หมู่ ถนน" />
                                     {addressErrors.line1 && (
                                         <p className="text-xs text-red-600 mt-1">{addressErrors.line1}</p>
                                     )}
@@ -272,39 +270,18 @@ export default function CheckoutPage() {
                                 </div>
                                 <div>
                                     <label className="block text-sm text-gray-600 mb-1">อำเภอ/เขต</label>
-                                    <input
-                                        value={address.city}
-                                        onChange={handleAddressChange("city")}
-                                        className={`w-full px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 ${addressErrors.city
-                                            ? "border-red-300 focus:ring-red-400"
-                                            : "border-gray-200 focus:ring-purple-400"
-                                            }`}
-                                        placeholder="อำเภอ/เขต"
-                                    />
+                                    <input value={address.city} onChange={handleAddressChange("city")} className={`w-full px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 ${addressErrors.city ? "border-red-300 focus:ring-red-400" : "border-gray-200 focus:ring-purple-400"}`} placeholder="อำเภอ/เขต" />
                                     {addressErrors.city && (
                                         <p className="text-xs text-red-600 mt-1">{addressErrors.city}</p>
                                     )}
                                 </div>
                                 <div>
                                     <label className="block text-sm text-gray-600 mb-1">จังหวัด</label>
-                                    <input
-                                        value={address.state}
-                                        onChange={handleAddressChange("state")}
-                                        className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                                        placeholder="จังหวัด"
-                                    />
+                                    <input value={address.state} onChange={handleAddressChange("state")} className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-400" nplaceholder="จังหวัด" />
                                 </div>
                                 <div>
                                     <label className="block text-sm text-gray-600 mb-1">รหัสไปรษณีย์</label>
-                                    <input
-                                        value={address.postalCode}
-                                        onChange={handleAddressChange("postalCode")}
-                                        className={`w-full px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 ${addressErrors.postalCode
-                                            ? "border-red-300 focus:ring-red-400"
-                                            : "border-gray-200 focus:ring-purple-400"
-                                            }`}
-                                        placeholder="10xxx"
-                                    />
+                                    <input value={address.postalCode} onChange={handleAddressChange("postalCode")} className={`w-full px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 ${addressErrors.postalCode ? "border-red-300 focus:ring-red-400" : "border-gray-200 focus:ring-purple-400"}`} placeholder="10xxx" />
                                     {addressErrors.postalCode && (
                                         <p className="text-xs text-red-600 mt-1">{addressErrors.postalCode}</p>
                                     )}
@@ -386,11 +363,7 @@ export default function CheckoutPage() {
                                         </div>
                                     )}
 
-                                    <button
-                                        onClick={handlePlaceOrder}
-                                        disabled={!canPlaceOrder || orderLoading || !csrfToken}
-                                        className={`w-full mt-3 py-2.5 rounded-xl text-white font-medium transition-colors ${canPlaceOrder && csrfToken ? "bg-purple-600 hover:bg-purple-700" : "bg-gray-300 cursor-not-allowed"}`}
-                                    >
+                                    <button onClick={handlePlaceOrder} disabled={!canPlaceOrder || orderLoading || !csrfToken} className={`w-full mt-3 py-2.5 rounded-xl text-white font-medium transition-colors ${canPlaceOrder && csrfToken ? "bg-purple-600 hover:bg-purple-700" : "bg-gray-300 cursor-not-allowed"}`}>
                                         {orderLoading ? "กำลังสร้างคำสั่งซื้อ..." : "ยืนยันคำสั่งซื้อ"}
                                     </button>
                                 </div>

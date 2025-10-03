@@ -83,7 +83,7 @@ export default function Navbar() {
                             </button>
                             {userMenuOpen && (
                                 <div className="absolute top-full mt-2 right-0 bg-white shadow-lg rounded-xl py-2 w-40">
-                                    <Link href="/order-history" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50" >
+                                    <Link href="/order/history" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50" >
                                         ประวัติการซื้อ
                                     </Link>
                                     <Link href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50" >
@@ -136,7 +136,7 @@ export default function Navbar() {
                                     <Link href="/" onClick={() => setIsOpen(false)} className="block px-3 py-2.5 rounded-lg text-gray-700 hover:bg-blue-50">Home</Link>
                                     <Link href="/cart" onClick={() => setIsOpen(false)} className="block px-3 py-2.5 rounded-lg text-gray-700 hover:bg-blue-50">Cart</Link>
                                     <Link href="/profile" onClick={() => setIsOpen(false)} className="block px-3 py-2.5 rounded-lg text-gray-700 hover:bg-blue-50">Profile</Link>
-                                    <Link href="/order-history" onClick={() => setIsOpen(false)} className="block px-3 py-2.5 rounded-lg text-gray-700 hover:bg-blue-50">ประวัติการซื้อ</Link>
+                                    <Link href="/order/history" onClick={() => setIsOpen(false)} className="block px-3 py-2.5 rounded-lg text-gray-700 hover:bg-blue-50">ประวัติการซื้อ</Link>
                                     <form action={logout}>
                                         <input type="hidden" name="csrfToken" value={csrfToken ?? ""} />
                                         <button type="submit" className="w-full text-left px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50" >
