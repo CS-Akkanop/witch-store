@@ -18,14 +18,11 @@ export async function POST(request) {
         const sig = headersList.get('stripe-signature')
         const forwardedFor = headersList.get('x-forwarded-for');
 
-        const clientIP = forwardedFor ? forwardedFor.split(',')[0].trim() : request.ip || 'unknown';
+        const clientIP = forwardedFor ? forwardedFor.split(',')[0].trim() : 'unknown';
 
         if (!webhookIPs.includes(clientIP)) {
             console.log("Unauthorized IP:", clientIP);
-            return NextResponse.json(
-                { message: "Forbidden: Unauthorized IP" },
-                { status: 403 }
-            );
+            return new Response(JSON.stringify({ success: false, error: "Forbidden: Unauthorized IP" }), { status: 403 });
         }
 
         const body = await request.text();
@@ -34,10 +31,7 @@ export async function POST(request) {
             event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
         } catch (err) {
             console.error(`⚠️ Webhook signature verification failed.`, err.message);
-            return NextResponse.json(
-                { error: `Webhook Error: ${err.message}` },
-                { status: 400 }
-            );
+            return new Response(JSON.stringify({ success: false, error: `Webhook Error: ${err.message}` }), { status: 400 });
         }
 
         const timeAt = dayjs().format('YYYY-MM-DD HH:mm:ss');
@@ -68,13 +62,9 @@ export async function POST(request) {
                 console.log(`Unhandled event type: ${event.type}`);
         }
 
-        return {
-            received: true
-        }
+        return Response.json({ success: true, received: true });
     } catch (err) {
         console.error('Webhook error:', err);
-        return {
-            error: 'Internal server error'
-        }
+        return new Response(JSON.stringify({ success: false, error: 'Internal server error' }), { status: 500 });
     }
 }

@@ -39,7 +39,7 @@ export async function generateQRPayment(formData) {
             }
         });
 
-        var return_url = `https://test.jakethewitcher.shop/order/success?orderId=${orderId}`
+        var return_url = `https://jakethewitcher.shop/checkout/success?orderId=${orderId}`
 
 
         const paymentIntent = await stripe.paymentIntents.create({

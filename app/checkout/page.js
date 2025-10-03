@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 
 import Swal from "sweetalert2";
 import { generateQRPayment } from "@/serveractions/payments";
+
 import { toDataURL } from "qrcode";
 
 export default function CheckoutPage() {
@@ -24,6 +25,7 @@ export default function CheckoutPage() {
     const [qrCode, setQrCode] = useState("");
     const [qrLoading, setQrLoading] = useState(false);
     const [qrError, setQrError] = useState("");
+    // Address
 
     const qrRef = useRef(null);
 
@@ -63,8 +65,31 @@ export default function CheckoutPage() {
             }
         }
 
+        async function loadProfile() {
+            try {
+                const res = await fetch("/api/profile", { cache: "no-store" });
+                if (!res.ok) return; // unauthenticated or server error; skip prefill
+                const data = await res.json();
+                if (data?.success && data.address) {
+                    if (isMounted) setAddress(prev => ({
+                        ...prev,
+                        fullName: data.address.fullName || "",
+                        phone: data.address.phone || "",
+                        line1: data.address.line1 || "",
+                        line2: data.address.line2 || "",
+                        city: data.address.city || "",
+                        state: data.address.state || "",
+                        postalCode: data.address.postalCode || "",
+                    }));
+                }
+            } catch (e) {
+                // ignore profile prefill errors
+            }
+        }
+
         loadCart();
         loadCsrfToken();
+        loadProfile();
         return () => {
             isMounted = false;
         };
@@ -192,13 +217,22 @@ export default function CheckoutPage() {
 
                     if (qrResult.success) {
                         const qr = await toDataURL(qrResult.qrData);
-                        setQrCode(qr);
-                        setShowQR(true);
                         await Swal.fire({
-                            title: "สร้าง QR สำเร็จ",
-                            text: `หมายเลขสั่งซื้อ: ${result.orderId}`,
-                            icon: "success"
-                        });
+                            imageUrl: qr,
+                            imageAlt: "QRCode Payment",
+                            text: `จำนวนเงิน: ${formattedSubtotal} บาท`,
+                            showConfirmButton: false,
+                            showConfirmButton: true,
+                            cancelButtonText: "ยกเลิกรายการ",
+                        }).then((result) => {
+                            if (result.isDenied) {
+                                Swal.fire({
+                                    title: "ยกเลิกการชำระเงิน",
+                                    icon: "error"
+                                });
+                            }
+                        })
+
                     } else {
                         setQrError(qrResult.error || "QR Payment failed");
                         await Swal.fire({ title: "ไม่สามารถสร้าง QR ได้", text: qrResult.error || "เกิดข้อผิดพลาด", icon: "error" });
@@ -288,31 +322,6 @@ export default function CheckoutPage() {
                                 </div>
                             </div>
                         </div>
-
-                        {showQR && (
-                            <div ref={qrRef} className="bg-white/80 backdrop-blur-sm rounded-2xl p-5 shadow-md border border-gray-100">
-                                <h2 className="text-lg font-semibold text-gray-800 mb-4">ชำระเงินด้วย QR</h2>
-                                <div className="flex flex-col sm:flex-row items-center gap-6">
-                                    <div className="w-48 h-48 bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl flex items-center justify-center border border-purple-200">
-                                        {qrLoading ? (
-                                            <Image src="/icon.png" alt="QR Placeholder" width={120} height={120} className="opacity-80 animate-pulse" />
-                                        ) : qrCode ? (
-                                            <Image src={qrCode} alt="QR Code" width={192} height={192} />
-                                        ) : (
-                                            <Image src="/icon.png" alt="QR Placeholder" width={120} height={120} className="opacity-80" />
-                                        )}
-                                    </div>
-                                    <div className="flex-1 w-full">
-                                        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-4">
-                                            <p className="text-sm text-gray-700">ยอดชำระ</p>
-                                            <p className="text-2xl font-bold text-purple-700">฿{formattedSubtotal}</p>
-                                        </div>
-                                        {qrError && <p className="text-sm text-red-600 mt-2">{qrError}</p>}
-                                        <p className="text-xs text-gray-500 mt-2">สแกน QR เพื่อชำระเงิน ระบบจะอัปเดตสถานะคำสั่งซื้อโดยอัตโนมัติ</p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                     </section>
 
                     <aside className="lg:col-span-1">
@@ -354,8 +363,6 @@ export default function CheckoutPage() {
                                             <span>฿{formattedSubtotal}</span>
                                         </div>
                                     </div>
-
-                                    {/* QR payment button removed */}
 
                                     {orderError && (
                                         <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
