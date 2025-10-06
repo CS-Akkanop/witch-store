@@ -307,7 +307,7 @@ export async function resetPassword(formData) {
         const hashedPassword = await bcrypt.hash(newPassword, 10);
 
         const [rows2] = await promisePool.query(
-            "UPDATE users SET password = ? WHERE email = ?",
+            "UPDATE users SET pass_hash = ? WHERE email = ?",
             [hashedPassword, email]
         );
 
