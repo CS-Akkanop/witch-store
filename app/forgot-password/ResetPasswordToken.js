@@ -1,19 +1,43 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { resetPassword } from "@/serveractions/auths";
+import { resetPassword, checkResetToken } from "@/serveractions/auths";
 import Swal from "sweetalert2";
 
 export function ResetPasswordToken() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const token = searchParams.get("token");
+    const [token, setToken] = useState(null);
+
     const [isPending, startTransition] = useTransition();
     const [form, setForm] = useState({
         newPassword: "",
         confirmPassword: "",
     });
+
+    useEffect(() => {
+        const tokenParam = searchParams.get("token");
+        if (!tokenParam) return;
+
+        setToken(tokenParam);
+
+        const verifyToken = async () => {
+            const checkToken = await checkResetToken(tokenParam);
+            if (!checkToken?.success) {
+                await Swal.fire({
+                    icon: "error",
+                    title: "เกิดข้อผิดพลาด",
+                    text: "กรุณาลองใหม่อีกครั้ง",
+                    timer: 2000,
+                    showConfirmButton: false,
+                });
+                router.push("/forgot-password");
+            }
+        };
+
+        verifyToken();
+    }, [searchParams, router]);
 
     const handleChange = (e) => {
         setForm({ ...form, [e.target.name]: e.target.value });

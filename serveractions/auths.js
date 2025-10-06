@@ -290,7 +290,7 @@ export async function resetPassword(formData) {
     try {
         // Check if token exists and get associated email
         const [rows1] = await promisePool.query(
-            "SELECT `reset-token`, email FROM `forget-password` WHERE `reset-token` = ? LIMIT 1",
+            "SELECT f.`reset-token`, f.email, u.pass_hash FROM `forget-password` AS f JOIN `users` AS u ON f.email COLLATE utf8mb4_unicode_ci = u.email COLLATE utf8mb4_unicode_ci WHERE f.`reset-token` = ? LIMIT 1",
             [passwordToken]
         );
 
@@ -299,6 +299,14 @@ export async function resetPassword(formData) {
                 success: false,
                 error: "Invalid or expired token. Please request a new password reset."
             };
+        }
+        
+        const checkIsSamePassword = await bcrypt.compare(newPassword, rows1[0].pass_hash,);
+        if(checkIsSamePassword) {
+            return {
+                success: false,
+                error: "ไม่สามารถตั้งเหมือนรหัสผ่านเดิมได้"
+            }
         }
 
         const email = rows1[0].email;
@@ -333,6 +341,28 @@ export async function resetPassword(formData) {
         return {
             success: false,
             error: "Password reset failed. Please try again."
+        };
+    }
+}
+
+export async function checkResetToken(token) {
+    try {
+
+        const [rows] = await promisePool.query("SELECT `reset-token` FROM `forget-password` WHERE `reset-token` = ? LIMIT 1", [token]);
+        if (!rows || rows.length === 0) {
+            return {
+                success: false,
+                error: "Invalid or expired token. Please request a new password reset."
+            };
+        }
+        return {
+            success: true
+        }
+    } catch (err) {
+        console.error("Error:", err);
+        return {
+            success: false,
+            error: "Token for Password Reset failed. Please try again."
         };
     }
 }
