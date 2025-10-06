@@ -109,7 +109,7 @@ export default function Homepage() {
                   <div className="relative aspect-square mb-3 bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl sm:rounded-2xl overflow-hidden">
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 bg-gradient-to-br from-purple-600 to-purple-300 rounded-full flex items-center justify-center shadow-lg">
-                        <Image src={`https://cdn.jakethewitcher.shop/img${product.image}`} priority={true} width={256} height={256} className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 text-white" alt={product.name} />
+                        <Image src={`https://cdn.jakethewitcher.shop/img${product.image}`} priority={true} width={64} height={64} className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 text-white" alt={product.name} />
                       </div>
                     </div>
                   </div>

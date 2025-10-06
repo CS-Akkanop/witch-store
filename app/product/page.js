@@ -94,7 +94,7 @@ export default function ProductPage() {
           <div className="flex flex-col md:flex-row gap-8 max-w-5xl mx-auto bg-white rounded-3xl shadow-xl p-6">
             {/* Product Image */}
             <div className="md:w-1/2 w-full bg-gray-100 rounded-2xl flex items-center justify-center p-4">
-              <Image src={`https://cdn.jakethewitcher.shop/img${product.image}`} priority={true} alt={product.name} width={512} height={512} className="object-contain rounded-2xl" />
+              <Image src={`https://cdn.jakethewitcher.shop/img${product.image}`} alt={product.name} width={512} height={512} className="object-contain rounded-2xl" />
             </div>
 
             {/* Product Info */}
