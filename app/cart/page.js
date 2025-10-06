@@ -12,7 +12,7 @@ function CartItem({ item, updateQuantity, removeItem }) {
     return (
         <div className="flex items-center gap-4 bg-white/80 backdrop-blur-sm rounded-2xl p-3 sm:p-4 shadow-md hover:shadow-lg transition-all">
             <div className="relative w-20 h-20 sm:w-24 sm:h-24 bg-purple-100 rounded-xl overflow-hidden flex items-center justify-center">
-                <Image src={item.image} alt={item.name} width={96} height={96} className="object-contain w-16 h-16 sm:w-20 sm:h-20" />
+                <Image src={`https://cdn.jakethewitcher.shop/img${item.image}`} priority={true} alt={item.name} width={96} height={96} className="object-contain w-16 h-16 sm:w-20 sm:h-20" />
             </div>
             <div className="flex-1 space-y-1">
                 <h3 className="text-sm sm:text-base font-semibold text-gray-800">{item.name}</h3>

@@ -342,7 +342,7 @@ export default function CheckoutPage() {
                                         {carts.map((item) => (
                                             <li key={item.product_id} className="py-2 flex items-center gap-3">
                                                 <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center overflow-hidden">
-                                                    <Image src={item.image} alt={item.name} width={48} height={48} className="object-contain w-10 h-10" />
+                                                    <Image src={`https://cdn.jakethewitcher.shopimg/${item.image}`} priority={true} alt={item.name} width={48} height={48} className="object-contain w-10 h-10" />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-sm font-medium text-gray-800 truncate">{item.name}</p>
