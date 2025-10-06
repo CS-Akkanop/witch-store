@@ -39,7 +39,7 @@ export async function generateQRPayment(formData) {
             }
         });
 
-        var return_url = `${DOMAIN}/checkout/success?orderId=${orderId}`
+        var return_url = `${process.env.DOMAIN}/checkout/success?orderId=${orderId}`
 
 
         const paymentIntent = await stripe.paymentIntents.create({

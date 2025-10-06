@@ -234,7 +234,7 @@ export async function forgetPasswordSend(formData) {
             [reset_password_token, data.email, expiredDate]
         );
 
-        const resetUrl = `${DOMAIN}/forget-password?token=${reset_password_token}`;
+        const resetUrl = `${process.env.DOMAIN}/forget-password?token=${reset_password_token}`;
 
         const html = `
             <div style="font-family: Arial, sans-serif; background-color: #f5f6fa; padding: 20px;">
