@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 import Swal from "sweetalert2";
 
@@ -11,7 +11,6 @@ const Navbar = dynamic(() => import("@/Components/Navbar"), { ssr: false });
 
 export default function ProductPage() {
   const productName = useSearchParams().get("pname") || "";
-  const router = useRouter();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -33,6 +32,16 @@ export default function ProductPage() {
   }, [productName]);
 
   const addToCart = async (itemId) => {
+    const response = await fetch('/api/auth/session')
+
+    const data = await response.json()
+    if (!data.success) {
+      return Swal.fire({
+        title: "Warning!",
+        text: "กรุณาเข้าสู่ระบบก่อนเพิ่มลงตะกร้า",
+        icon: "warning"
+      })
+    }
     const { value: quantity } = await Swal.fire({
       title: "ระบุจำนวน",
       input: "text",
@@ -57,33 +66,6 @@ export default function ProductPage() {
     return Swal.fire({ title: "Error", text: "คำสั่งซื้อผิดพลาด", icon: "error" });
   };
 
-  const buyNow = async (itemId) => {
-    const { value: quantity } = await Swal.fire({
-      title: "ระบุจำนวน",
-      input: "text",
-      inputPlaceholder: "ระบุจำนวนที่ต้องการสั่งซื้อ",
-      inputValidator: (value) => {
-        if (!value) return "คุณต้องใส่จำนวน";
-      }
-    });
-
-    if (!quantity) return;
-
-    const res = await fetch('/api/cart', {
-      method: "POST",
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ itemId, quantity })
-    });
-
-    if (res.ok) {
-      await Swal.fire({ title: "เพิ่มลงตะกร้าสำเร็จ", text: `จำนวนสั่ง: ${quantity}`, icon: "success" });
-      router.push('/checkout');
-      return;
-    }
-    return Swal.fire({ title: "Error", text: "คำสั่งซื้อผิดพลาด", icon: "error" });
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-50">
       <Navbar />
@@ -102,7 +84,7 @@ export default function ProductPage() {
               <div>
                 <h1 className="text-4xl sm:text-5xl font-extrabold mb-4">{productName || ""}</h1>
                 <p className="text-purple-600 text-2xl font-bold mb-2">฿{(product.price / 100).toFixed(2) || ""}</p>
-                <p className="text-gray-600 text-sm mb-2">จำนวนของในคลัง: {(product.stock) || ""}</p>
+                {/* <p className="text-gray-600 text-sm mb-2">จำนวนของในคลัง: {(product.stock) || ""}</p> */}
                 <p className="text-gray-700 whitespace-pre-line">{product.description || ""}</p>
               </div>
 
@@ -110,9 +92,6 @@ export default function ProductPage() {
               <div className="flex flex-col gap-3 mt-6">
                 <button onClick={(e) => { e.stopPropagation(); addToCart(product.id); }} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold py-3 rounded-full hover:scale-105 transition transform">
                   เพิ่มลงตะกร้า
-                </button>
-                <button onClick={(e) => { e.stopPropagation(); buyNow(product.id); }} className="w-full border-2 border-purple-500 text-purple-600 font-semibold py-3 rounded-full hover:bg-gray-50 transition">
-                  ซื้อเลย
                 </button>
               </div>
             </div>
