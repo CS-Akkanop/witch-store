@@ -86,7 +86,7 @@ export default function Homepage() {
         {/* Promotion Banner */}
         <div className="mb-6 sm:mb-8 max-w-4xl mx-auto">
           <div className="relative w-full rounded-2xl sm:rounded-3xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
-            <Image src={`https://cdn.jakethewitcher.shop/img/promotion.png`} priority={true} alt="โปรโมชั่น 10.10" width={1200} height={400} className="w-full h-auto object-cover" priorit={true} />
+            <Image src={`https://cdn.jakethewitcher.shop/img/promotion.png`} priority={true} alt="โปรโมชั่น 10.10" width={1200} height={400} className="w-full h-auto object-cover" />
           </div>
         </div>
 
